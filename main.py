@@ -22,23 +22,49 @@ for folder_name in os.listdir(master_directory):
                 try:
                     filepath = os.path.join(directory, filename)
 
-                    # Parse file for scraping
+                    # Process file for scraping
                     with open(filepath, 'r') as file:
-                        soup = BeautifulSoup(file, "html.parser")
+                        parse_string = file.read()
+                    # Mark end of template
+                    parse_string = parse_string.replace(
 
-                    mandant = re.findall("(-.*?-)", filename, flags=re.DOTALL)[0][1:-1]
-                    var_tags = soup.find_all("poc-variable")
+                    )
+                    soup = BeautifulSoup(parse_string, "html.parser")
 
+                    # mandant = re.findall("(-.*?-)", filename, flags=re.DOTALL)[0][1:-1]
+                    mandant = filename[0:4]
+
+                    # JSON Structure
+                    # High-level dict for generating json
                     json_dict[mandant] = {}
-                    var_dict = json_dict[mandant]
+                    # Dict to encapsulate single templates
+                    count = 1
+                    template_dict = json_dict[mandant]
+                    # Dict where variables/values are saved
+                    var_dict = {}
 
+                    var_tags = soup.find_all("poc-variable")
                     for tag in var_tags:
-                        # If double value, add to array
+                        # Eliminate \xa0
+                        value = tag.text
+                        if value == "\xa0":
+                            value = ""
+
+                        # Close and var_dict and append it to template_dict
+                        if tag['id'] == "new-template":
+                            key = "Template " + str(count)
+                            count += 1
+                            template_dict[key] = var_dict
+                            var_dict = {}
+                            continue
+
+                        # If double value [WIEDERHOLEN], add to array
                         if tag['id'] in var_dict:
-                            var_dict[tag['id']].append(tag.text)
+                            var_dict[tag['id']].append(value)
                         # Else create new array entry
                         else:
-                            var_dict[tag['id']] = [tag.text]
+                            var_dict[tag['id']] = [value]
+                    template_dict["Template " + str(count)] = var_dict
 
                     # Create JSON in POC-tests sub-folder
                     write_path = directory + '/values.json'
